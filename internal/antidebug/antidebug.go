@@ -38,7 +38,7 @@ func New() *Debugger {
 		"dnspy.exe", "dnspy.console.exe", "ilspy.exe", "de4dot.exe", "dotpeek.exe", "reflexil.exe",
 		// System & Process Monitoring
 		"processhacker.exe", "systeminformer.exe", "procexp.exe", "procexp64.exe", "procmon.exe", "procmon64.exe",
-		"autoruns.exe", "autorunsc.exe", "taskmgr.exe", "process.exe", "ksdumper.exe", "ksdumperclient.exe",
+		"autoruns.exe", "autorunsc.exe", "process.exe", "ksdumper.exe", "ksdumperclient.exe",
 		"apimonitor.exe", "apimonitor-x64.exe", "apimonitor-x86.exe", "scylla.exe", "scylla_x64.exe", "scylla_x86.exe",
 		// Network Sniffing & Traffic Interception
 		"wireshark.exe", "fiddler.exe", "fiddlerclassic.exe", "fiddlereverywhere.exe", "charles.exe", "burpsuite.exe",

@@ -41,12 +41,6 @@ func New() *VMDetector {
 			"prl_pv30.sys", "prl_vnic.sys", "prl_boot.sys", "prl_paravirt.sys", "prl_tools.exe",
 			// Xen Hypervisor Drivers
 			"xenevtchn.sys", "xennet.sys", "xenvbd.sys", "xeniface.sys", "xenbus.sys",
-			// Hyper-V Integration Services
-			"hv_vmbus.sys", "hv_storvsc.sys", "hv_netvsc.sys", "hv_balloon.sys", "hv_kvp.sys",
-			"hv_fcopy.sys", "hv_vss.sys", "hv_rdv.sys", "hv_utils.sys", "hv_ide.sys",
-			"hv_serial.sys", "hv_socket.sys", "hv_shutdown.sys", "hv_acpi.sys", "hv_pci.sys",
-			"hv_time.sys", "hv_heartbeat.sys", "hv_keyboard.sys", "hv_mouse.sys", "hv_dxgkrnl.sys",
-			"vmbus.sys", "storvsc.sys", "netvsc.sys",
 		},
 		badDirs: []string{
 			`C:\Program Files\VMware`,
