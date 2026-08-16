@@ -70,10 +70,10 @@ func New() *HookDetector {
 // FindHookedFunctions checks critical system APIs across system DLLs and returns any hooked functions.
 func (h *HookDetector) FindHookedFunctions() []string {
 	libraries := []string{"kernel32.dll", "kernelbase.dll", "ntdll.dll", "user32.dll", "win32u.dll"}
-	kernellibfunc := []string{"IsDebuggerPresent", "CheckRemoteDebuggerPresent", "GetThreadContext", "CloseHandle", "OutputDebugStringA", "GetTickCount", "SetHandleInformation"}
-	ntdllfunc := []string{"NtQueryInformationProcess", "NtSetInformationThread", "NtClose", "NtGetContextThread", "NtQuerySystemInformation", "NtCreateFile", "NtCreateProcess", "NtCreateSection", "NtCreateThread", "NtYieldExecution", "NtCreateUserProcess"}
-	user32func := []string{"FindWindowW", "FindWindowA", "FindWindowExW", "FindWindowExA", "GetForegroundWindow", "GetWindowTextLengthA", "GetWindowTextA", "BlockInput", "CreateWindowExW", "CreateWindowExA"}
-	win32ufunc := []string{"NtUserBlockInput", "NtUserFindWindowEx", "NtUserQueryWindow", "NtUserGetForegroundWindow"}
+	kernellibfunc := []string{"IsDebuggerPresent", "CheckRemoteDebuggerPresent", "GetThreadContext", "OutputDebugStringA", "GetTickCount"}
+	ntdllfunc := []string{"NtQueryInformationProcess", "NtSetInformationThread", "NtGetContextThread", "NtYieldExecution"}
+	user32func := []string{"FindWindowW", "FindWindowA", "GetForegroundWindow"}
+	win32ufunc := []string{"NtUserFindWindowEx", "NtUserGetForegroundWindow"}
 
 	var hooked []string
 	for _, library := range libraries {
