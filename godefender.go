@@ -1,8 +1,8 @@
 package godefender
 
 import (
-	"github.com/EvilBytecode/GoDefender/internal/defender"
-	"github.com/EvilBytecode/GoDefender/internal/models"
+	"github.com/psyc0dev/goDefender/internal/defender"
+	"github.com/psyc0dev/goDefender/internal/models"
 )
 
 // Re-export core types for convenient client consumption.

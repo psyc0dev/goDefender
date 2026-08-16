@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/github/stars/EvilBytecode/GoDefender?style=for-the-badge"></a>
+  <a href="#"><img src="https://img.shields.io/github/stars/psyc0dev/goDefender?style=for-the-badge"></a>
   <a href="#"><img src="https://img.shields.io/badge/LANGUAGE-GO-blue?style=for-the-badge"></a>
   <a href="#"><img src="https://img.shields.io/badge/PLATFORM-WINDOWS-green?style=for-the-badge"></a>
 </p>
@@ -17,7 +17,7 @@ A powerful Go-based security toolkit designed to detect and defend against debug
 ### 1. Use as a Go Library in Your Project
 
 ```bash
-go get github.com/EvilBytecode/GoDefender
+go get github.com/psyc0dev/goDefender
 ```
 
 ```go
@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"os"
 
-	godefender "github.com/EvilBytecode/GoDefender"
+	godefender "github.com/psyc0dev/goDefender"
 )
 
 func main() {
@@ -45,6 +45,12 @@ func main() {
 
 ### 2. Standalone CLI Tool
 
+#### Install globally via `go install`:
+```bash
+go install github.com/psyc0dev/goDefender/cmd/godefender@latest
+```
+
+#### Or build from source:
 ```bash
 # Build CLI binary
 go build -o GoDefender.exe ./cmd/godefender
@@ -89,12 +95,7 @@ go build -o GoDefender.exe ./cmd/godefender
 - Detects most anti-anti-debugging hooking methods on common anti-debugging functions by checking for bad instructions on function addresses (most effective on x64). It also detects user-mode anti-anti-debuggers like ScyllaHide and can detect some sandboxes that use hooking to monitor application behavior/activity (like [Tria.ge](https://tria.ge/)).
 
 ## Telegram:
-- https://t.me/ebytelabs
-
-## 🤝 Contributing
-
-Feel free to open issues for additional anti-debugging features, improvements, or bug reports. Contributions are welcome!
-Linux support is welcome
+- https://t.me/psyc0dev
 
 ## 📜 License
 
@@ -103,13 +104,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## ⚠️ Disclaimer
 
 This software is provided for educational and legitimate security research purposes only. Use responsibly and only on systems you own or have explicit permission to test.
-
-## 🙏 Credits
-
-- **AdvDebug** - Initial inspiration - [GitHub](https://github.com/AdvDebug)
-- **MmCopyMemory** - Technical insights and ideas - [GitHub](https://github.com/MmCopyMemory)
-- **baum1810** - Port Check Idea - [GitHub](https://github.com/baum1810)
-- **HydraDragonAntivirus** - replacing WMIC with WMI - [GitHub](https://github.com/HydraDragonAntivirus)
 
 ---
 

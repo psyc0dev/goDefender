@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	godefender "github.com/EvilBytecode/GoDefender"
+	godefender "github.com/psyc0dev/goDefender"
 )
 
 func main() {

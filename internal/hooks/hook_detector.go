@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/EvilBytecode/GoDefender/internal/models"
-	"github.com/EvilBytecode/GoDefender/internal/utils"
+	"github.com/psyc0dev/goDefender/internal/models"
+	"github.com/psyc0dev/goDefender/internal/utils"
 )
 
 // Inspect prologue bytes to identify common hooking trampolines (detours, MinHook, FrHook, etc.)

@@ -3,7 +3,7 @@ package antidll
 import (
 	"unsafe"
 
-	"github.com/EvilBytecode/GoDefender/internal/utils"
+	"github.com/psyc0dev/goDefender/internal/utils"
 )
 
 type DLLProtector struct {

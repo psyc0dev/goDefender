@@ -8,8 +8,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/EvilBytecode/GoDefender/internal/models"
-	"github.com/EvilBytecode/GoDefender/internal/utils"
+	"github.com/psyc0dev/goDefender/internal/models"
+	"github.com/psyc0dev/goDefender/internal/utils"
 	"github.com/StackExchange/wmi"
 	"golang.org/x/sys/windows/registry"
 )

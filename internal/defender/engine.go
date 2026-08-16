@@ -3,11 +3,11 @@ package defender
 import (
 	"sync"
 
-	"github.com/EvilBytecode/GoDefender/internal/antidebug"
-	"github.com/EvilBytecode/GoDefender/internal/antidll"
-	"github.com/EvilBytecode/GoDefender/internal/antivm"
-	"github.com/EvilBytecode/GoDefender/internal/hooks"
-	"github.com/EvilBytecode/GoDefender/internal/models"
+	"github.com/psyc0dev/goDefender/internal/antidebug"
+	"github.com/psyc0dev/goDefender/internal/antidll"
+	"github.com/psyc0dev/goDefender/internal/antivm"
+	"github.com/psyc0dev/goDefender/internal/hooks"
+	"github.com/psyc0dev/goDefender/internal/models"
 )
 
 type Engine struct {

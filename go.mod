@@ -1,4 +1,4 @@
-module github.com/EvilBytecode/GoDefender
+module github.com/psyc0dev/goDefender
 
 go 1.26.6
 

@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/EvilBytecode/GoDefender/internal/models"
-	"github.com/EvilBytecode/GoDefender/internal/utils"
+	"github.com/psyc0dev/goDefender/internal/models"
+	"github.com/psyc0dev/goDefender/internal/utils"
 	"golang.org/x/sys/windows"
 )
 
