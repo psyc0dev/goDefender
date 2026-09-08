@@ -3,7 +3,6 @@ package antidebug
 import (
 	"fmt"
 	"net"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -156,55 +155,6 @@ func (d *Debugger) CheckRepetitiveProcesses(threshold int) (bool, error) {
 	return false, nil
 }
 
-func (d *Debugger) CheckParentProcess() (bool, string) {
-	const ProcInfo = 0
-	var p ProcessInfo
-
-	handle := syscall.Handle(windows.CurrentProcess())
-
-	r1, _, err := d.Winapi.QueryInformationProcess(
-		handle,
-		ProcInfo,
-		uintptr(unsafe.Pointer(&p)),
-		uint32(unsafe.Sizeof(p)),
-	)
-
-	if r1 != 0 || (err != nil && err != syscall.Errno(0)) {
-		return false, "Failed to query process information"
-	}
-
-	parentPID := int32(p.InheritedFromPID)
-	if parentPID == 0 {
-		return false, "Invalid parent PID 0"
-	}
-
-	parentHandle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(parentPID))
-	if err != nil {
-		return false, fmt.Sprintf("Failed to open parent PID %d", parentPID)
-	}
-	defer syscall.CloseHandle(parentHandle)
-
-	var nameBuffer [windows.MAX_PATH]uint16
-	size := uint32(len(nameBuffer))
-	err = windows.QueryFullProcessImageName(windows.Handle(parentHandle), 0, &nameBuffer[0], &size)
-	if err != nil {
-		return false, "Failed to query parent image name"
-	}
-
-	parentName := strings.ToLower(filepath.Base(syscall.UTF16ToString(nameBuffer[:size])))
-	validParents := []string{
-		"explorer.exe", "cmd.exe", "powershell.exe", "pwsh.exe",
-		"windowsterminal.exe", "code.exe", "devenv.exe", "services.exe",
-	}
-
-	for _, valid := range validParents {
-		if parentName == valid {
-			return true, parentName
-		}
-	}
-
-	return false, parentName
-}
 
 func (d *Debugger) CheckBlacklistedWindows() (bool, string) {
 	user32 := windows.NewLazySystemDLL("user32.dll")
@@ -321,24 +271,6 @@ func (d *Debugger) RunAllChecks() []models.CheckResult {
 		})
 	}
 
-	// Parent Process
-	if isValid, parent := d.CheckParentProcess(); !isValid {
-		results = append(results, models.CheckResult{
-			Category: models.CategoryAntiDebug,
-			Name:     "Parent Process Verification",
-			Detected: true,
-			Severity: models.SeverityMedium,
-			Details:  fmt.Sprintf("Unusual parent process: %s", parent),
-		})
-	} else {
-		results = append(results, models.CheckResult{
-			Category: models.CategoryAntiDebug,
-			Name:     "Parent Process Verification",
-			Detected: false,
-			Severity: models.SeverityInfo,
-			Details:  fmt.Sprintf("Legitimate parent process: %s", parent),
-		})
-	}
 
 	return results
 }
