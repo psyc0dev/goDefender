@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -27,12 +28,27 @@ const (
 )
 
 type CheckResult struct {
-	Category    CheckCategory `json:"category"`
-	Name        string        `json:"name"`
-	Detected    bool          `json:"detected"`
-	Severity    Severity      `json:"severity"`
-	Details     string        `json:"details,omitempty"`
-	Error       error         `json:"error,omitempty"`
+	Category CheckCategory `json:"category"`
+	Name     string        `json:"name"`
+	Detected bool          `json:"detected"`
+	Severity Severity      `json:"severity"`
+	Details  string        `json:"details,omitempty"`
+	Error    error         `json:"error,omitempty"`
+}
+
+func (r CheckResult) MarshalJSON() ([]byte, error) {
+	type Alias CheckResult
+	var errStr string
+	if r.Error != nil {
+		errStr = r.Error.Error()
+	}
+	return json.Marshal(&struct {
+		Alias
+		Error string `json:"error,omitempty"`
+	}{
+		Alias: Alias(r),
+		Error: errStr,
+	})
 }
 
 type Report struct {
