@@ -55,48 +55,50 @@ func (d *DLLProtector) PreventDLLInjection() error {
 func (d *DLLProtector) PatchAllLoadLibrary() error {
 	kernelbase := d.winapi.GetModuleHandle("kernelbase.dll")
 	ntdll := d.winapi.GetModuleHandle("ntdll.dll")
-
+	
 	if kernelbase == 0 {
 		return d.winapi.LastError()
 	}
-
-	is64Bit := unsafe.Sizeof(uintptr(0)) == 8
-
-	// On x64: caller cleans stack, return NULL (0) via XOR EAX, EAX; RET (31 C0 C3)
-	// On x86: callee cleans stack (stdcall)
-	var loadLibPatch []byte
-	var loadLibExPatch []byte
-	var ldrLoadDllPatch []byte
-
-	if is64Bit {
-		loadLibPatch = []byte{0x31, 0xC0, 0xC3}
-		loadLibExPatch = []byte{0x31, 0xC0, 0xC3}
-		// NTSTATUS STATUS_ACCESS_DENIED (0xC0000022)
-		ldrLoadDllPatch = []byte{0xB8, 0x22, 0x00, 0x00, 0xC0, 0xC3}
-	} else {
-		// x86 stdcall: XOR EAX, EAX; RET 4 (1 parameter)
-		loadLibPatch = []byte{0x31, 0xC0, 0xC2, 0x04, 0x00}
-		// x86 stdcall: XOR EAX, EAX; RET 12 (3 parameters)
-		loadLibExPatch = []byte{0x31, 0xC0, 0xC2, 0x0C, 0x00}
-		// x86 stdcall: MOV EAX, 0xC0000022; RET 16 (4 parameters)
-		ldrLoadDllPatch = []byte{0xB8, 0x22, 0x00, 0x00, 0xC0, 0xC2, 0x10, 0x00}
-	}
-
-	for _, funcName := range []string{"LoadLibraryA", "LoadLibraryW"} {
-		if funcAddr := d.winapi.GetProcAddress(kernelbase, funcName); funcAddr != 0 {
-			d.winapi.WriteProcessMemory(funcAddr, loadLibPatch)
+    // remember go uses loadlib, so we patch it but issue is the program will crash (access violation, so thats why i put it as last lol)
+	kernelbaseFunctions := []string{"LoadLibraryA", "LoadLibraryW", "LoadLibraryExA", "LoadLibraryExW"}
+	ntdllFunctions := []string{"LdrLoadDll"}
+	/*
+	you might be confused why its not 0xc3 (ret)
+	ret imm16 (C2 xx xx) pops the return address, then additionally
+	adds imm16 bytes to ESP. This is commonly used in stdcall functions
+	to clean up arguments. Here, 'C2 04 00' means 'ret 4', which pops
+	the return address AND cleans up 4 bytes (one argument).
+	It's not just "ret + N"; it's specifically callee stack cleanup.
+	*/
+	// i saw this back then in a advdebugs code so i just recoded it, but he removed it i think...
+	// but anyways i opened x64, ctrl+g (Function we want to patch) and yes if you check start bytes you can check that its been patched.
+	hookedCode := []byte{0xC2, 0x04, 0x00}
+	for _, funcName := range kernelbaseFunctions {
+		funcAddr := d.winapi.GetProcAddress(kernelbase, funcName)
+		if funcAddr == 0 {
+			continue 
 		}
-	}
-
-	for _, funcName := range []string{"LoadLibraryExA", "LoadLibraryExW"} {
-		if funcAddr := d.winapi.GetProcAddress(kernelbase, funcName); funcAddr != 0 {
-			d.winapi.WriteProcessMemory(funcAddr, loadLibExPatch)
+		success := d.winapi.WriteProcessMemory(funcAddr, hookedCode)
+		if !success {
+			//utils.Print("Failed to patch %s", funcName)
 		}
 	}
 
 	if ntdll != 0 {
-		if funcAddr := d.winapi.GetProcAddress(ntdll, "LdrLoadDll"); funcAddr != 0 {
-			d.winapi.WriteProcessMemory(funcAddr, ldrLoadDllPatch)
+		for _, funcName := range ntdllFunctions {
+			funcAddr := d.winapi.GetProcAddress(ntdll, funcName)
+			if funcAddr == 0 {
+				//utils.Print("Function %s not found in ntdll.dll", funcName)
+				continue 
+			}
+
+			//utils.Print("Patching %s at address 0x%x", funcName, funcAddr)
+			success := d.winapi.WriteProcessMemory(funcAddr, hookedCode)
+			if !success {
+				//utils.Print("Failed to patch %s", funcName)
+			} else {
+				//utils.Print("Successfully patched %s", funcName)
+			}
 		}
 	}
 
