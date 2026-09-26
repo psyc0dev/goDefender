@@ -11,6 +11,7 @@ import (
 	"github.com/psyc0dev/goDefender/internal/models"
 	"github.com/psyc0dev/goDefender/internal/utils"
 	"github.com/StackExchange/wmi"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -94,6 +95,32 @@ func (v *VMDetector) CheckSMBIOSFirmware() (bool, string, error) {
 		}
 	}
 	return false, "", nil
+}
+
+// CheckBIOSRegistry inspects Windows hardware system registry for virtualization vendor identifiers.
+func (v *VMDetector) CheckBIOSRegistry() (bool, string) {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `HARDWARE\DESCRIPTION\System\BIOS`, registry.QUERY_VALUE)
+	if err != nil {
+		return false, ""
+	}
+	defer key.Close()
+
+	checks := []string{"SystemManufacturer", "SystemProductName", "BIOSVendor", "BaseBoardManufacturer"}
+	vmKeywords := []string{"vmware", "virtualbox", "vbox", "qemu", "kvm", "innotek", "parallels", "xen", "hyper-v", "seabios"}
+
+	for _, valueName := range checks {
+		val, _, err := key.GetStringValue(valueName)
+		if err != nil {
+			continue
+		}
+		valLower := strings.ToLower(val)
+		for _, kw := range vmKeywords {
+			if strings.Contains(valLower, kw) {
+				return true, fmt.Sprintf("BIOS registry %s contains VM signature: %s", valueName, val)
+			}
+		}
+	}
+	return false, ""
 }
 
 // CheckHardwareConstraints checks if available CPU cores or RAM indicate a constrained sandbox/analysis VM.
@@ -258,13 +285,10 @@ func (v *VMDetector) CheckPortConnectors() (bool, error) {
 
 func (v *VMDetector) CheckScreenSize() (bool, error) {
 	getSystemMetrics := syscall.NewLazyDLL("user32.dll").NewProc("GetSystemMetrics")
-	width, _, err := getSystemMetrics.Call(0)
-	if err != nil && err.Error() != "The operation completed successfully." {
-		return false, err
-	}
-	height, _, err := getSystemMetrics.Call(1)
-	if err != nil && err.Error() != "The operation completed successfully." {
-		return false, err
+	width, _, _ := getSystemMetrics.Call(0)
+	height, _, _ := getSystemMetrics.Call(1)
+	if width == 0 || height == 0 {
+		return false, nil
 	}
 	return width < 800 || height < 600, nil
 }
@@ -290,15 +314,10 @@ func (v *VMDetector) CheckAnyRun() bool {
 }
 
 func (v *VMDetector) CheckUSBDevices() (bool, error) {
-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\ControlSet001\Services\USBSTOR`, registry.QUERY_VALUE)
-	if err == nil {
-		defer key.Close()
-		return true, nil
-	}
-
-	key, err = registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\ControlSet001\Enum\USBSTOR`, registry.ENUMERATE_SUB_KEYS)
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Enum\USBSTOR`, registry.ENUMERATE_SUB_KEYS)
 	if err != nil {
-		return false, nil
+		// Key doesn't exist - no USB storage device has ever been connected
+		return true, nil
 	}
 	defer key.Close()
 
@@ -382,9 +401,24 @@ func (v *VMDetector) CheckNamedPipes() bool {
 	}
 
 	for _, device := range suspiciousDevices {
-		file := v.winapi.Fopen(device, "r")
-		if file != 0 {
-			v.winapi.Fclose(file)
+		pathPtr, err := windows.UTF16PtrFromString(device)
+		if err != nil {
+			continue
+		}
+		handle, err := windows.CreateFile(
+			pathPtr,
+			0,
+			windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
+			nil,
+			windows.OPEN_EXISTING,
+			0,
+			0,
+		)
+		if handle != windows.InvalidHandle {
+			windows.CloseHandle(handle)
+			return true
+		}
+		if err == windows.ERROR_ACCESS_DENIED || err == windows.ERROR_PIPE_BUSY {
 			return true
 		}
 	}
@@ -400,6 +434,13 @@ func (v *VMDetector) RunAllChecks() []models.CheckResult {
 		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "SMBIOS Firmware Table", Error: err})
 	} else {
 		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "SMBIOS Firmware Table", Detected: isVM, Severity: models.SeverityCritical, Details: details})
+	}
+
+	// BIOS Registry
+	if isVMBios, details := v.CheckBIOSRegistry(); isVMBios {
+		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "BIOS Registry Configuration", Detected: true, Severity: models.SeverityCritical, Details: details})
+	} else {
+		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "BIOS Registry Configuration", Detected: false, Severity: models.SeverityInfo, Details: "Normal hardware manufacturer in BIOS registry"})
 	}
 
 	// Hardware Specs
@@ -473,6 +514,26 @@ func (v *VMDetector) RunAllChecks() []models.CheckResult {
 	}
 	if v.CheckWine() {
 		results = append(results, models.CheckResult{Category: models.CategoryAntiVM, Name: "Wine Emulation", Detected: true, Severity: models.SeverityHigh, Details: "Wine environment detected"})
+	}
+
+	// ANY.RUN Sandbox
+	if v.CheckAnyRun() {
+		results = append(results, models.CheckResult{Category: models.CategoryAntiVM, Name: "ANY.RUN Sandbox", Detected: true, Severity: models.SeverityCritical, Details: "Known ANY.RUN sandbox MachineGuid identified in registry"})
+	}
+
+	// Blacklisted Usernames
+	if v.CheckBlacklistedUsernames() {
+		results = append(results, models.CheckResult{Category: models.CategoryAntiVM, Name: "Sandbox Username", Detected: true, Severity: models.SeverityHigh, Details: fmt.Sprintf("Known sandbox username detected: %s", os.Getenv("USERNAME"))})
+	}
+
+	// Port Connectors
+	if zeroPorts, err := v.CheckPortConnectors(); err == nil && zeroPorts {
+		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "Motherboard Port Connectors", Detected: true, Severity: models.SeverityMedium, Details: "No physical motherboard port connectors detected"})
+	}
+
+	// USB Devices History
+	if noUSB, err := v.CheckUSBDevices(); err == nil && noUSB {
+		results = append(results, models.CheckResult{Category: models.CategoryHardware, Name: "USB Storage History", Detected: true, Severity: models.SeverityLow, Details: "No historical USB storage devices detected in USBSTOR registry"})
 	}
 
 	return results

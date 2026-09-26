@@ -98,6 +98,8 @@ type WinAPI struct {
 	ProcGetModuleBaseName *syscall.LazyProc
 	ProcWriteProcessMemory *syscall.LazyProc
 	ProcGetCurrentProcess  *syscall.LazyProc
+	ProcGetCurrentThread   *syscall.LazyProc
+	ProcGetThreadContext   *syscall.LazyProc
 
 	ProcIsDebuggerPresent  *syscall.LazyProc
 	ProcCheckRemoteDebugger *syscall.LazyProc
@@ -106,6 +108,7 @@ type WinAPI struct {
 
 	ProcRtlInitUnicodeString         *syscall.LazyProc
 	ProcRtlUnicodeStringToAnsiString *syscall.LazyProc
+	ProcRtlFreeAnsiString            *syscall.LazyProc
 	ProcLdrGetDllHandleEx            *syscall.LazyProc
 	ProcLdrGetProcedureAddressForCall *syscall.LazyProc
 	ProcEnumDisplaySettingsW          *syscall.LazyProc
@@ -143,6 +146,8 @@ func NewWinAPI() *WinAPI {
 	w.ProcGetModuleBaseName = w.Psapi.NewProc("GetModuleBaseNameW")
 	w.ProcWriteProcessMemory = w.Kernel32.NewProc("WriteProcessMemory")
 	w.ProcGetCurrentProcess = w.Kernel32.NewProc("GetCurrentProcess")
+	w.ProcGetCurrentThread = w.Kernel32.NewProc("GetCurrentThread")
+	w.ProcGetThreadContext = w.Kernel32.NewProc("GetThreadContext")
 
 	w.ProcIsDebuggerPresent = w.Kernel32.NewProc("IsDebuggerPresent")
 	w.ProcCheckRemoteDebugger = w.Kernel32.NewProc("CheckRemoteDebuggerPresent")
@@ -151,6 +156,7 @@ func NewWinAPI() *WinAPI {
 
 	w.ProcRtlInitUnicodeString = w.Ntdll.NewProc("RtlInitUnicodeString")
 	w.ProcRtlUnicodeStringToAnsiString = w.Ntdll.NewProc("RtlUnicodeStringToAnsiString")
+	w.ProcRtlFreeAnsiString = w.Ntdll.NewProc("RtlFreeAnsiString")
 	w.ProcLdrGetDllHandleEx = w.Ntdll.NewProc("LdrGetDllHandleEx")
 	w.ProcLdrGetProcedureAddressForCall = w.Ntdll.NewProc("LdrGetProcedureAddressForCaller")
 	w.ProcEnumDisplaySettingsW = w.User32.NewProc("EnumDisplaySettingsW")
@@ -218,6 +224,7 @@ func (w *WinAPI) LowLevelGetProcAddress(hModule uintptr, function string) uintpt
 	var ansiString ANSI_STRING
 	w.RtlInitUnicodeString(&unicodeString, function)
 	w.RtlUnicodeStringToAnsiString(&ansiString, &unicodeString, true)
+	defer w.ProcRtlFreeAnsiString.Call(uintptr(unsafe.Pointer(&ansiString)))
 	w.LdrGetProcedureAddressForCaller(hModule, &ansiString, 0, &functionHandle, 0, 0)
 	return functionHandle
 }
@@ -245,12 +252,12 @@ func (w *WinAPI) IsDebuggerPresent() bool {
 }
 
 func (w *WinAPI) CheckRemoteDebugger() (bool, error) {
-	var isDebuggerPresent bool
+	var isDebuggerPresent int32
 	r1, _, err := w.ProcCheckRemoteDebugger.Call(^uintptr(0), uintptr(unsafe.Pointer(&isDebuggerPresent)))
 	if r1 == 0 {
 		return false, err
 	}
-	return isDebuggerPresent, nil
+	return isDebuggerPresent != 0, nil
 }
 
 func (w *WinAPI) EnumProcesses() ([]uint32, error) {
@@ -459,27 +466,27 @@ func (w *WinAPI) GetDisplayRefreshRate() (uint32, error) {
 }
 
 func (w *WinAPI) GetSystemFirmwareTable(provider uint32, id uint32) ([]byte, error) {
-	ret, _, _ := w.ProcGetSystemFirmwareTable.Call(
+	ret, _, err := w.ProcGetSystemFirmwareTable.Call(
 		uintptr(provider),
 		uintptr(id),
 		0,
 		0,
 	)
 	if ret == 0 {
-		return nil, w.LastError()
+		return nil, err
 	}
 
 	bufSize := uint32(ret)
 	buffer := make([]byte, bufSize)
 
-	ret, _, _ = w.ProcGetSystemFirmwareTable.Call(
+	ret, _, err = w.ProcGetSystemFirmwareTable.Call(
 		uintptr(provider),
 		uintptr(id),
 		uintptr(unsafe.Pointer(&buffer[0])),
 		uintptr(bufSize),
 	)
 	if ret == 0 {
-		return nil, w.LastError()
+		return nil, err
 	}
 
 	return buffer, nil
@@ -489,9 +496,9 @@ func (w *WinAPI) GetPhysicalMemoryMB() (uint64, error) {
 	var memStatus MEMORYSTATUSEX
 	memStatus.Length = uint32(unsafe.Sizeof(memStatus))
 
-	ret, _, _ := w.ProcGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memStatus)))
+	ret, _, err := w.ProcGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memStatus)))
 	if ret == 0 {
-		return 0, w.LastError()
+		return 0, err
 	}
 
 	return memStatus.TotalPhys / (1024 * 1024), nil
@@ -505,18 +512,18 @@ func (w *WinAPI) GetProcessorCount() uint32 {
 
 func (w *WinAPI) QueryPerformanceCounter() (int64, error) {
 	var count int64
-	ret, _, _ := w.ProcQueryPerformanceCounter.Call(uintptr(unsafe.Pointer(&count)))
+	ret, _, err := w.ProcQueryPerformanceCounter.Call(uintptr(unsafe.Pointer(&count)))
 	if ret == 0 {
-		return 0, w.LastError()
+		return 0, err
 	}
 	return count, nil
 }
 
 func (w *WinAPI) QueryPerformanceFrequency() (int64, error) {
 	var freq int64
-	ret, _, _ := w.ProcQueryPerformanceFrequency.Call(uintptr(unsafe.Pointer(&freq)))
+	ret, _, err := w.ProcQueryPerformanceFrequency.Call(uintptr(unsafe.Pointer(&freq)))
 	if ret == 0 {
-		return 0, w.LastError()
+		return 0, err
 	}
 	return freq, nil
 }
